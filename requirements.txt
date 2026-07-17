@@ -1,0 +1,6 @@
+web3
+python-dotenv
+langgraph
+langchain
+langchain-openai
+# Add more: langchain-community, ipfshttpclient, etc. as needed
