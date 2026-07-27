@@ -24,6 +24,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from agent_core import run_agent
 from monitoring import check_system_health
 
 logger = logging.getLogger(__name__)
@@ -59,9 +60,6 @@ async def handle_a2a_task(task: A2ATask) -> A2AResponse:
     The agent is invoked synchronously; for long-running tasks consider
     wrapping run_agent in asyncio.to_thread or using a task queue.
     """
-    # Import here to avoid circular import at module level
-    from agent_core import run_agent  # noqa: PLC0415
-
     start = time.time()
     logger.info("A2A task received | id=%s", task.task_id or "none")
 
@@ -69,7 +67,7 @@ async def handle_a2a_task(task: A2ATask) -> A2AResponse:
         response_text = run_agent(task.message)
     except Exception as exc:
         logger.error("Agent error | id=%s | %s", task.task_id, exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal server error") from exc
 
     elapsed = time.time() - start
     logger.info("A2A task completed | id=%s | %.2fs", task.task_id, elapsed)

@@ -66,7 +66,8 @@ def _check_rpc(rpc_url: str, label: str) -> dict[str, Any]:
         block = w3.eth.block_number if connected else None
         return {"rpc": label, "connected": connected, "latest_block": block}
     except Exception as exc:
-        return {"rpc": label, "connected": False, "error": str(exc)}
+        logger.error("RPC check failed (%s): %s", label, exc)
+        return {"rpc": label, "connected": False, "error": "RPC check failed"}
 
 
 def _check_oracle() -> dict[str, Any]:
@@ -88,7 +89,8 @@ def _check_oracle() -> dict[str, Any]:
             "stale": stale,
         }
     except Exception as exc:
-        return {"oracle": "chainlink_eth_usd", "error": str(exc)}
+        logger.error("Oracle check failed: %s", exc)
+        return {"oracle": "chainlink_eth_usd", "error": "Oracle check failed"}
 
 
 def _check_wallet() -> dict[str, Any]:
@@ -115,7 +117,8 @@ def _check_wallet() -> dict[str, Any]:
             "low_balance_alert": low,
         }
     except Exception as exc:
-        return {"wallet": "error", "error": str(exc)}
+        logger.error("Wallet check failed: %s", exc)
+        return {"wallet": "error", "error": "Wallet check failed"}
 
 
 def _check_gas() -> dict[str, Any]:
@@ -133,7 +136,8 @@ def _check_gas() -> dict[str, Any]:
             )
         return {"gas_price_gwei": round(gas_gwei, 4), "high_gas_alert": high}
     except Exception as exc:
-        return {"gas": "error", "error": str(exc)}
+        logger.error("Gas check failed: %s", exc)
+        return {"gas": "error", "error": "Gas check failed"}
 
 
 # ── Aggregated health check ───────────────────────────────────────────────────

@@ -60,7 +60,7 @@ Rules:
 6. Remind users that all analysis is simulation-only unless they confirm otherwise.
 """
 
-_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+_llm = ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
 _tools = [
     get_wallet_balance,
     get_uniswap_v3_price,

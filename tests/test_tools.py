@@ -6,14 +6,10 @@ Run with:  pytest tests/
 """
 
 import os
-import sys
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Ensure the project root is importable regardless of working directory
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # ── get_wallet_balance ────────────────────────────────────────────────────────

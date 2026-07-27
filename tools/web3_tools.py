@@ -216,7 +216,8 @@ def _get_uniswap_v3_price(
         amount_out_human = amount_out_raw / (10**out_decimals)
         in_sym = TOKEN_SYMBOLS.get(t_in, t_in[:10])
         out_sym = TOKEN_SYMBOLS.get(t_out, t_out[:10])
-
+        # fee_tier uses Uniswap V3 units: 1 unit = 0.0001 %, so divide by 10000
+        # e.g. fee_tier=500 → 0.05 %, fee_tier=3000 → 0.30 %
         return {
             "dex": "uniswap_v3",
             "pair": f"{in_sym}/{out_sym}",

@@ -25,7 +25,9 @@ from tools.web3_tools import (
 
 logger = logging.getLogger(__name__)
 
-# Minimum spread (%) above which an opportunity is flagged.
+# Minimum spread in percentage points to flag an opportunity.
+# e.g. 0.15 means the best venue's price must be at least 0.15% higher than
+# the worst venue before the spread is considered worth reporting.
 # 0.15 % comfortably covers typical gas costs on Base L2 (~$0.02–$0.10 per swap).
 MIN_SPREAD_PCT = 0.15
 

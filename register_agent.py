@@ -77,8 +77,9 @@ def main() -> None:
 
     contract = w3.eth.contract(address=IDENTITY_REGISTRY, abi=REGISTRY_ABI)
 
-    # Use dynamic gas pricing: base fee * 1.5 for inclusion confidence
-    gas_price = int(w3.eth.gas_price * 1.5)
+    # Use dynamic gas pricing with configurable multiplier for inclusion confidence
+    gas_multiplier = float(os.getenv("GAS_PRICE_MULTIPLIER", "1.5"))
+    gas_price = int(w3.eth.gas_price * gas_multiplier)
     logger.info("Gas price: %.4f gwei", float(Web3.from_wei(gas_price, "gwei")))
 
     nonce = w3.eth.get_transaction_count(account.address)
