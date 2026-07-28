@@ -19,6 +19,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 from tools.arbitrage import detect_arbitrage_opportunity
+from tools.executor import execute_flash_arbitrage
 from tools.web3_tools import (
     get_aerodrome_price,
     get_chainlink_price,
@@ -42,22 +43,26 @@ if not os.getenv("OPENAI_API_KEY"):
 SYSTEM_PROMPT = """You are ProfitPilot, an autonomous DeFi intelligence agent on Base.
 
 Your mission: monitor on-chain prices, detect cross-DEX arbitrage opportunities,
-and deliver actionable analysis — safety and testnet-first operation always.
+and execute them via flash loans — safety and testnet-first operation always.
 
 Available tools:
-- get_wallet_balance       — check ETH and token balances for any address
-- get_uniswap_v3_price     — live swap quote from Uniswap V3 on Base mainnet
-- get_aerodrome_price      — live swap quote from Aerodrome on Base mainnet
-- get_chainlink_price      — latest Chainlink oracle price on Base mainnet
+- get_wallet_balance           — check ETH and token balances for any address
+- get_uniswap_v3_price         — live swap quote from Uniswap V3 on Base mainnet
+- get_aerodrome_price          — live swap quote from Aerodrome on Base mainnet
+- get_chainlink_price          — latest Chainlink oracle price on Base mainnet
 - detect_arbitrage_opportunity — full cross-DEX scan (Uniswap V3 + Aerodrome)
+- execute_flash_arbitrage      — execute arbitrage via Aave V3 flash loan (Base Sepolia)
 
 Rules:
 1. Use detect_arbitrage_opportunity for any broad market scan.
 2. Always cross-reference DEX prices with Chainlink to validate data quality.
 3. Flag stale oracle data (age > 3600 s) as unreliable.
 4. Include spread_pct and net_profit_usd_estimate in every opportunity report.
-5. Never instruct the user to execute a mainnet trade without explicit confirmation.
-6. Remind users that all analysis is simulation-only unless they confirm otherwise.
+5. Only call execute_flash_arbitrage after detect_arbitrage_opportunity confirms
+   a profitable opportunity AND the user explicitly authorises execution.
+6. Always remind the user that execute_flash_arbitrage targets Base Sepolia
+   (testnet) — no real funds are at risk.
+7. Never instruct the user to execute a mainnet trade without explicit confirmation.
 """
 
 _llm = ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
@@ -67,6 +72,7 @@ _tools = [
     get_aerodrome_price,
     get_chainlink_price,
     detect_arbitrage_opportunity,
+    execute_flash_arbitrage,
 ]
 
 # Build the ReAct agent (tool-calling loop handled automatically by LangGraph)

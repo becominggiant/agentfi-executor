@@ -288,3 +288,141 @@ class TestMonitoring:
 
         assert result["healthy"] is False
         assert any("stale" in a.lower() for a in result["alerts"])
+
+
+# ── execute_flash_arbitrage ───────────────────────────────────────────────────
+
+class TestExecuteFlashArbitrage:
+    """All blockchain calls are mocked — no live testnet required."""
+
+    _WETH = "0x4200000000000000000000000000000000000006"
+    _USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    _CONTRACT = "0xDeAdBeEf00000000000000000000000000000001"
+
+    def _env(self):
+        return {
+            "PRIVATE_KEY": "0x" + "a" * 64,
+            "FLASH_ARBITRAGE_CONTRACT": self._CONTRACT,
+        }
+
+    def test_missing_private_key_returns_error(self):
+        from tools.executor import execute_flash_arbitrage
+
+        with patch.dict("os.environ", {}, clear=True):
+            # remove PRIVATE_KEY and FLASH_ARBITRAGE_CONTRACT
+            import os
+            os.environ.pop("PRIVATE_KEY", None)
+            os.environ.pop("FLASH_ARBITRAGE_CONTRACT", None)
+            result = execute_flash_arbitrage.invoke(
+                {
+                    "token_in": self._USDC,
+                    "token_out": self._WETH,
+                    "amount_in_human": 500.0,
+                    "buy_venue": "uniswap_v3_500",
+                    "sell_venue": "uniswap_v3_3000",
+                    "expected_token_out_human": 0.143,
+                    "min_profit_usd": 0.50,
+                    "chainlink_price_usd": 3500.0,
+                }
+            )
+        assert "error" in result
+
+    def test_missing_contract_address_returns_error(self):
+        from tools.executor import execute_flash_arbitrage
+
+        env = {"PRIVATE_KEY": "0x" + "a" * 64}
+        with patch.dict("os.environ", env):
+            import os
+            os.environ.pop("FLASH_ARBITRAGE_CONTRACT", None)
+            result = execute_flash_arbitrage.invoke(
+                {
+                    "token_in": self._USDC,
+                    "token_out": self._WETH,
+                    "amount_in_human": 500.0,
+                    "buy_venue": "uniswap_v3_500",
+                    "sell_venue": "uniswap_v3_3000",
+                    "expected_token_out_human": 0.143,
+                    "min_profit_usd": 0.50,
+                    "chainlink_price_usd": 3500.0,
+                }
+            )
+        assert "error" in result
+        assert "FLASH_ARBITRAGE_CONTRACT" in result["error"]
+
+    def test_unknown_venue_returns_error(self):
+        from tools.executor import execute_flash_arbitrage
+
+        with patch.dict("os.environ", self._env()):
+            result = execute_flash_arbitrage.invoke(
+                {
+                    "token_in": self._USDC,
+                    "token_out": self._WETH,
+                    "amount_in_human": 500.0,
+                    "buy_venue": "unknown_dex",
+                    "sell_venue": "uniswap_v3_500",
+                    "expected_token_out_human": 0.143,
+                    "min_profit_usd": 0.50,
+                    "chainlink_price_usd": 3500.0,
+                }
+            )
+        assert "error" in result
+        assert "unknown_dex" in result["error"]
+
+    def test_successful_execution(self):
+        from tools.executor import execute_flash_arbitrage
+
+        mock_contract_fn = MagicMock()
+        mock_contract_fn.estimate_gas.return_value = 350_000
+        mock_contract_fn.build_transaction.return_value = {
+            "to": self._CONTRACT,
+            "data": "0x",
+            "gas": 420_000,
+            "gasPrice": 1_000_000_000,
+            "nonce": 0,
+            "value": 0,
+            "chainId": 84532,
+        }
+
+        mock_contract = MagicMock()
+        mock_contract.functions.executeArbitrage.return_value = mock_contract_fn
+        mock_contract.events.ArbitrageExecuted.return_value.process_receipt.return_value = [
+            {"args": {"profit": 100_000, "borrowed": 500_000_000}}
+        ]
+
+        mock_receipt = MagicMock()
+        mock_receipt.__getitem__ = lambda s, k: {
+            "status": 1, "blockNumber": 12345, "gasUsed": 380_000
+        }[k]
+
+        tx_hash_bytes = bytes.fromhex("abcd" * 16)
+
+        mock_w3 = MagicMock()
+        mock_w3.eth.gas_price = 1_000_000_000
+        mock_w3.eth.get_transaction_count.return_value = 0
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_w3.eth.account.sign_transaction.return_value = MagicMock(
+            raw_transaction=b"\x00" * 64
+        )
+        mock_w3.eth.send_raw_transaction.return_value = tx_hash_bytes
+        mock_w3.eth.wait_for_transaction_receipt.return_value = mock_receipt
+
+        with patch.dict("os.environ", self._env()), \
+             patch("tools.executor.w3_test", mock_w3):
+            result = execute_flash_arbitrage.invoke(
+                {
+                    "token_in": self._USDC,
+                    "token_out": self._WETH,
+                    "amount_in_human": 500.0,
+                    "buy_venue": "uniswap_v3_500",
+                    "sell_venue": "aerodrome_volatile",
+                    "expected_token_out_human": 0.143,
+                    "min_profit_usd": 0.05,
+                    "chainlink_price_usd": 3500.0,
+                }
+            )
+
+        assert result.get("status") == "success"
+        assert "tx_hash" in result
+        assert "explorer" in result
+        assert "warning" in result
+
